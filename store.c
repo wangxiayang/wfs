@@ -296,8 +296,24 @@ static int wfs_ftruncate(const char *path, off_t offset, struct fuse_file_info *
 
 static int wfs_fgetattr(const char *path, struct stat *stat, struct fuse_file_info *fi)
 {
-	printf("\33[0;31mfgetattr\33[m path=%s\n", path);
-	return 0;
+	printf("\33[0;33mfgetattr\33[m path=%s\n", path);
+
+	REAL_PATH(path)
+
+	int fd = (int)fi->fh;
+	if (!fd) {
+		fprintf(stderr, "fd is invalid\n");
+		return -EBADF;
+	}
+
+	int res = fstat(fd, stat);
+	int errv = errno;
+	if (res == 0) {
+		return res;
+	}
+	else {
+		return -errv;
+	}
 }
 
 static int wfs_lock(const char *path, struct fuse_file_info *fi, int cmd, struct flock *f)
