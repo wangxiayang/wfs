@@ -389,9 +389,32 @@ static int wfs_fsyncdir(const char *path, int flags, struct fuse_file_info *fi)
 	return 0;
 }
 
-//init
-//destroy
-//access
+static void *wfs_init(struct fuse_conn_info *conn)
+{
+  	printf("\33[0;31minit\33[m\n");
+
+	return 0;
+}
+
+static void wfs_destroy(void *args)
+{
+  	printf("\33[0;31mdestroy\33[m\n");
+}
+
+static int wfs_access(const char *path, int mode)
+{
+  	printf("\33[0;31maccess path=%s\33[m\n", path);
+
+	REAL_PATH(path)
+
+	int res = access(real_path, mode);
+	int errv = errno;
+	if (res == 0) {
+	  	return res;
+	} else {
+	  	return -errv;
+	}
+}
 
 static int wfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 {
@@ -465,9 +488,26 @@ static int wfs_utimens(const char *path, const struct timespec tv[2])
 	return 0;
 }
 
-//bmap
-//ioctl
-//poll
+static int wfs_bmap(const char *path, size_t blocksize, uint64_t *idx)
+{
+  	printf("\33[0;31mbmap path=%s blocksize=%zu\33[m\n", path, blocksize);
+	return 0;
+}
+
+static int wfs_ioctl(const char *path, int cmd, void *args,
+	struct fuse_file_info *fi, unsigned int flags, void *data)
+{
+  	printf("\33[0;31mioctl path=%s\33[m\n", path);
+	return 0;
+}
+
+static int wfs_poll(const char *path, struct fuse_file_info *fi,
+	struct fuse_pollhandle *ph, unsigned *reventsp)
+{
+  	printf("\33[0;31mpoll path=%s\n", path);
+	return 0;
+}
+
 //write_buf
 //read_buf
 //flock
@@ -508,6 +548,13 @@ static struct fuse_operations wfs_oper = {
 	.fgetattr = wfs_fgetattr,
 	.lock = wfs_lock,
 	.utimens = wfs_utimens,
+
+	.init = wfs_init,
+	.destroy = wfs_destroy,
+	.access = wfs_access,
+	.ioctl = wfs_ioctl,
+	.poll = wfs_poll,
+	.bmap = wfs_bmap,
 };
 
 int main(int argc, char *argv[])
