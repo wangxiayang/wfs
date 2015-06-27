@@ -29,12 +29,18 @@ static int wfs_getattr(const char *path, struct stat *stbuf)
 	strcpy(real_path, rpath_prefix);
 	strcpy(real_path + strlen(rpath_prefix), path);
 
-	return stat(real_path, stbuf);
+	int res = stat(real_path, stbuf);
+	int errv = errno;
+	if (res == 0) {
+		return res;
+	} else {
+		return -errv;
+	}
 }
 
 static int wfs_readlink(const char *path, char *buf, size_t size)
 {
-	printf("\33[readlink path=%s\n", path);
+	printf("\33[0;31mreadlink path=%s\33[m\n", path);
 	return 0;
 }
 
@@ -106,86 +112,86 @@ static int wfs_read(const char *path,
 
 static int wfs_getdir(const char *path, fuse_dirh_t fd, fuse_dirfil_t fdf)
 {
-	printf("getdir path=%s\n", path);
+	printf("\33[0;31mgetdir\33[m path=%s\n", path);
 	return 0;
 }
 
 static int wfs_mknod(const char *path, mode_t mode, dev_t dev)
 {
-	printf("mknod path=%s\n", path);
+	printf("\33[0;31mmknod\33[m path=%s\n", path);
 	return 0;
 }
 
 static int wfs_mkdir(const char *path, mode_t mode)
 {
-	printf("mkdir path=%s\n", path);
+	printf("\33[0;31mmkdir\33[m path=%s\n", path);
 	return 0;
 }
 
 static int wfs_unlink(const char *path)
 {
-	printf("unlink path=%s\n", path);
+	printf("\33[0;31munlink\33[m path=%s\n", path);
 	return 0;
 }
 
 static int wfs_rmdir(const char *path)
 {
-	printf("rmdir path=%s\n", path);
+	printf("\33[0;31mrmdir\33[m path=%s\n", path);
 	return 0;
 }
 
 static int wfs_symlink(const char *oldpath, const char *newpath)
 {
-	printf("symlink old=%s new=%s\n", oldpath, newpath);
+	printf("\33[0;31msymlink\33[m old=%s new=%s\n", oldpath, newpath);
 	return 0;
 }
 
 static int wfs_rename(const char *oldpath, const char *newpath)
 {
-	printf("rename old=%s new=%s\n", oldpath, newpath);
+	printf("\33[0;31rename\33[m old=%s new=%s\n", oldpath, newpath);
 	return 0;
 }
 
 static int wfs_link(const char *oldpath, const char *newpath)
 {
-	printf("link old=%s new=%s\n", oldpath, newpath);
+	printf("\33[0;31mlink\33[m old=%s new=%s\n", oldpath, newpath);
 	return 0;
 }
 
 static int wfs_chmod(const char *path, mode_t mode)
 {
-	printf("chmod path=%s\n", path);
+	printf("\33[0;31mchmod\33[m path=%s\n", path);
 	return 0;
 }
 
 static int wfs_chown(const char *path, uid_t uid, gid_t gid)
 {
-	printf("chown path=%s\n", path);
+	printf("\33[0;31mchown\33[m path=%s\n", path);
 	return 0;
 }
 
 static int wfs_truncate(const char *path, off_t offset)
 {
-	printf("truncate path=%s\n", path);
+	printf("\33[0;31mtruncate\33[m path=%s\n", path);
 	return 0;
 }
 
 static int wfs_write(const char *path, const char *buf, size_t size, off_t offset,
 	struct fuse_file_info *fi)
 {
-	printf("write path=%s\n", path);
+	printf("\33[0;31mwrite\33[m path=%s\n", path);
 	return 0;
 }
 
 static int wfs_statfs(const char *path, struct statvfs *vfs)
 {
-	printf("statfs path=%s\n", path);
+	printf("\33[0;31mstatfs\33[m path=%s\n", path);
 	return 0;
 }
 
 static int wfs_flush(const char *path, struct fuse_file_info *fi)
 {
-	printf("flush path=%s\n", path);
+	printf("\33[0;31mflush\33[m path=%s\n", path);
 	return 0;
 }
 
@@ -193,7 +199,7 @@ static int wfs_release(const char *path, struct fuse_file_info *fi)
 {
 	printf("release path=%s\n", path);
 
-	FILE *fd = (FILE *)fi->fh;
+	int fd = (int)fi->fh;
 	if (!fd) {
 		fprintf(stderr, "invalid fd\n");
 		return -EBADF;
@@ -205,31 +211,31 @@ static int wfs_release(const char *path, struct fuse_file_info *fi)
 
 static int wfs_fsync(const char *path, int flags, struct fuse_file_info *fi)
 {
-	printf("fsync path=%s\n", path);
+	printf("\33[0;31mfsync\33[m path=%s\n", path);
 	return 0;
 }
 
 static int wfs_setxattr(const char *path, const char *name, const char *value, size_t size, int flags)
 {
-	printf("setxattr path=%s name=%s value=%s\n", path, name, value);
+	printf("\33[0;31msetxattr\33[m path=%s name=%s value=%s\n", path, name, value);
 	return 0;
 }
 
 static int wfs_getxattr(const char *path, const char *name, char *value, size_t size)
 {
-	printf("getxattr path=%s name=%s value=%s\n", path, name, value);
+	printf("\33[0;31mgetxattr\33[m path=%s name=%s value=%s\n", path, name, value);
 	return 0;
 }
 
 static int wfs_listxattr(const char *path, char *buf, size_t size)
 {
-	printf("listxattr path=%s\n", path);
+	printf("\33[0;31mlistxattr\33[m path=%s\n", path);
 	return 0;
 }
 
 static int wfs_removexattr(const char *path, const char *name)
 {
-	printf("removexattr path=%s name=%s\n", path, name);
+	printf("\33[0;31mremovexattr\33[m path=%s name=%s\n", path, name);
 	return 0;
 }
 
@@ -268,7 +274,7 @@ static int wfs_releasedir(const char *path, struct fuse_file_info *fi)
 
 static int wfs_fsyncdir(const char *path, int flags, struct fuse_file_info *fi)
 {
-	printf("fsyncdir path=%s flags=%d\n", path, flags);
+	printf("\33[0;31mfsyncdir\33[m path=%s flags=%d\n", path, flags);
 	return 0;
 }
 
@@ -278,31 +284,31 @@ static int wfs_fsyncdir(const char *path, int flags, struct fuse_file_info *fi)
 
 static int wfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 {
-	printf("create path=%s\n", path);
+	printf("\33[0;31mcreate\33[m path=%s\n", path);
 	return 0;
 }
 
 static int wfs_ftruncate(const char *path, off_t offset, struct fuse_file_info *fi)
 {
-	printf("ftruncate path=%s\n", path);
+	printf("\33[0;31mftruncate\33[m path=%s\n", path);
 	return 0;
 }
 
 static int wfs_fgetattr(const char *path, struct stat *stat, struct fuse_file_info *fi)
 {
-	printf("fgetattr path=%s\n", path);
+	printf("\33[0;31mfgetattr\33[m path=%s\n", path);
 	return 0;
 }
 
 static int wfs_lock(const char *path, struct fuse_file_info *fi, int cmd, struct flock *f)
 {
-	printf("lock path=%s\n", path);
+	printf("\33[0;31mlock\33[m path=%s\n", path);
 	return 0;
 }
 
 static int wfs_utimens(const char *path, const struct timespec tv[2])
 {
-	printf("utimes path=%s\n", path);
+	printf("\33[0;31mutimes\33[m path=%s\n", path);
 	return 0;
 }
 
