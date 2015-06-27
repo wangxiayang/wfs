@@ -133,8 +133,18 @@ static int wfs_mknod(const char *path, mode_t mode, dev_t dev)
 
 static int wfs_mkdir(const char *path, mode_t mode)
 {
-	printf("\33[0;31mmkdir\33[m path=%s\n", path);
-	return 0;
+	printf("mkdir path=%s\n", path);
+
+	REAL_PATH(path)
+
+	int res = mkdir(real_path, mode);
+	int errv = errno;
+
+	if (res == 0) {
+	  	return res;
+	} else {
+	  	return -errv;
+	}
 }
 
 static int wfs_unlink(const char *path)
@@ -155,14 +165,38 @@ static int wfs_unlink(const char *path)
 
 static int wfs_rmdir(const char *path)
 {
-	printf("\33[0;31mrmdir\33[m path=%s\n", path);
-	return 0;
+	printf("rmdir path=%s\n", path);
+
+	REAL_PATH(path)
+
+	int res = rmdir(real_path);
+	int errv = errno;
+	if (res == 0) {
+	  	return res;
+	} else {
+	  	return -errv;
+	}
 }
 
 static int wfs_symlink(const char *oldpath, const char *newpath)
 {
-	printf("\33[0;31msymlink\33[m old=%s new=%s\n", oldpath, newpath);
-	return 0;
+	printf("symlink old=%s new=%s\n", oldpath, newpath);
+
+	char real_oldpath[full_length(oldpath) + 1];
+	strcpy(real_oldpath, rpath_prefix);
+	strcpy(real_oldpath + strlen(rpath_prefix), oldpath);
+
+	char real_newpath[full_length(newpath) + 1];
+	strcpy(real_newpath, rpath_prefix);
+	strcpy(real_newpath + strlen(rpath_prefix), newpath);
+
+	int res = symlink(real_oldpath, real_newpath);
+	int errv = errno;
+	if (res == 0) {
+	  	return res;
+	} else {
+	  	return -errv;
+	}
 }
 
 static int wfs_rename(const char *oldpath, const char *newpath)
@@ -188,8 +222,23 @@ static int wfs_rename(const char *oldpath, const char *newpath)
 
 static int wfs_link(const char *oldpath, const char *newpath)
 {
-	printf("\33[0;31mlink\33[m old=%s new=%s\n", oldpath, newpath);
-	return 0;
+	printf("link old=%s new=%s\n", oldpath, newpath);
+
+	char real_oldpath[full_length(oldpath) + 1];
+	strcpy(real_oldpath, rpath_prefix);
+	strcpy(real_oldpath + strlen(rpath_prefix), oldpath);
+
+	char real_newpath[full_length(newpath) + 1];
+	strcpy(real_newpath, rpath_prefix);
+	strcpy(real_newpath + strlen(rpath_prefix), newpath);
+
+	int res = link(real_oldpath, real_newpath);
+	int errv = errno;
+	if (res == 0) {
+	  	return res;
+	} else {
+	  	return -errv;
+	}
 }
 
 static int wfs_chmod(const char *path, mode_t mode)
@@ -273,8 +322,17 @@ static int wfs_write(const char *path, const char *buf, size_t size, off_t offse
 
 static int wfs_statfs(const char *path, struct statvfs *vfs)
 {
-	printf("\33[0;31mstatfs\33[m path=%s\n", path);
-	return 0;
+	printf("statfs path=%s\n", path);
+
+	REAL_PATH(path)
+
+	int res = statvfs(real_path, vfs);
+	int errv = errno;
+	if (res == 0) {
+	  	return res;
+	} else {
+	  	return -errv;
+	}
 }
 
 static int wfs_flush(const char *path, struct fuse_file_info *fi)
