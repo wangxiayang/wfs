@@ -53,7 +53,9 @@ static int wfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_
 	strcpy(real_path, rpath_prefix);
 	strcpy(real_path + strlen(rpath_prefix), path);
 
-	printf("readdir realpath=%s\n", real_path);
+	if (offset != 0) {
+	  	fprintf(stderr, "\33[0;31m[WARNING]\33[moffset is not zero\n");
+	}
 
 	DIR *dir = (DIR *)fi->fh;
 	if(!dir) {
@@ -65,11 +67,6 @@ static int wfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_
 	while((entry = readdir(dir)) != NULL) {
 		filler(buf, entry->d_name, NULL, 0);
 	}
-	//closedir(dir);
-
-	//filler(buf, ".", NULL, 0);
-	//filler(buf, "..", NULL, 0);
-	//filler(buf, "hello", NULL, 0);
 
 	return 0;
 }
@@ -96,25 +93,36 @@ static int wfs_read(const char *path,
 	off_t offset,
 	struct fuse_file_info *fi)
 {
-	printf("read path=%s\n", path);
+	printf("read path=%s size=%zu offset=%jd\n", path, size, (intmax_t)offset);
 
 	char real_path[full_length(path) + 1];
 	strcpy(real_path, rpath_prefix);
 	strcpy(real_path + strlen(rpath_prefix), path);
 
-  	uint64_t fd = fi->fh;
+  	int fd = fi->fh;
 	if (!fd) {
 	  	fprintf(stderr, "no file discriptor for path=%s\n", path);
 	  	return 0;
 	}
 
-	return read(fd, buf, size);
-}
+	//if (offset != 0) {
+	//  	fprintf(stderr, "\33[0;31m[WARNING]\33[moffset is not 0 %jd\n", (intmax_t)offset);
+	//}
 
-static int wfs_getdir(const char *path, fuse_dirh_t fd, fuse_dirfil_t fdf)
-{
-	printf("\33[0;31mgetdir\33[m path=%s\n", path);
-	return 0;
+	off_t seekres = lseek(fd, offset, SEEK_SET);
+	int seekerrv = errno;
+	if (seekres < 0) {
+	  	fprintf(stderr, "failed in lseek\n");
+	  	return -seekerrv;
+	}
+
+	ssize_t res = read(fd, buf, size);
+	int errv = errno;
+	if (res < 0) {
+		return -errv;
+	} else {
+	  	return res;
+	}
 }
 
 static int wfs_mknod(const char *path, mode_t mode, dev_t dev)
@@ -159,8 +167,23 @@ static int wfs_symlink(const char *oldpath, const char *newpath)
 
 static int wfs_rename(const char *oldpath, const char *newpath)
 {
-	printf("\33[0;31rename\33[m old=%s new=%s\n", oldpath, newpath);
-	return 0;
+	printf("rename old=%s new=%s\n", oldpath, newpath);
+
+	char real_oldpath[full_length(oldpath) + 1];
+	strcpy(real_oldpath, rpath_prefix);
+	strcpy(real_oldpath + strlen(rpath_prefix), oldpath);
+
+	char real_newpath[full_length(newpath) + 1];
+	strcpy(real_newpath, rpath_prefix);
+	strcpy(real_newpath + strlen(rpath_prefix), newpath);
+
+	int res = rename(real_oldpath, real_newpath);
+	int errv = errno;
+	if (res == 0) {
+	  	return res;
+	} else {
+	  	return -errv;
+	}
 }
 
 static int wfs_link(const char *oldpath, const char *newpath)
@@ -187,8 +210,18 @@ static int wfs_chmod(const char *path, mode_t mode)
 
 static int wfs_chown(const char *path, uid_t uid, gid_t gid)
 {
-	printf("\33[0;31mchown\33[m path=%s\n", path);
-	return 0;
+	//printf("\33[0;31mchown\33[m path=%s\n", path);
+	printf("chown path=%s\n", path);
+	
+	REAL_PATH(path)
+
+	int res = chown(real_path, uid, gid);
+	int errv = errno;
+	if (res == 0) {
+	  	return res;
+	} else {
+	  	return -errv;
+	}
 }
 
 static int wfs_truncate(const char *path, off_t offset)
@@ -210,16 +243,23 @@ static int wfs_truncate(const char *path, off_t offset)
 static int wfs_write(const char *path, const char *buf, size_t size, off_t offset,
 	struct fuse_file_info *fi)
 {
-	printf("\33[0;33mwrite\33[m path=%s\n", path);
+	printf("write path=%s size=%zu offset=%jd\n", path, size, (intmax_t)offset);
 
-	if (offset != 0) {
-		fprintf(stderr, "\33[0;31m[WARNING]\33[moffset is not zero %jd\n", (intmax_t)offset);
-	}
+	//if (offset != 0) {
+	//	fprintf(stderr, "\33[0;31m[WARNING]\33[moffset is not zero %jd\n", (intmax_t)offset);
+	//}
 
 	int fd = (int)fi->fh;
 	if (!fd) {
 		fprintf(stderr, "fd is invalid\n");
 		return -EBADF;
+	}
+
+	off_t seekres = lseek(fd, offset, SEEK_SET);
+	int seekerrv = errno;
+	if (seekres < 0) {
+	  	fprintf(stderr, "lseek failed\n");
+		return seekerrv;
 	}
 
 	ssize_t res = write(fd, buf, size);
@@ -261,7 +301,7 @@ static int wfs_release(const char *path, struct fuse_file_info *fi)
 {
 	printf("release path=%s\n", path);
 
-	int fd = (int)fi->fh;
+	int fd = fi->fh;
 	if (!fd) {
 		fprintf(stderr, "invalid fd\n");
 		return -EBADF;
@@ -281,7 +321,7 @@ static int wfs_fsync(const char *path, int flags, struct fuse_file_info *fi)
 	//printf("\33[0;31mfsync\33[m path=%s\n", path);
 	printf("fsync path=%s\n", path);
 
-	int fd = (int)fi->fh;
+	int fd = fi->fh;
 	if (!fd) {
 		fprintf(stderr, "invalid fd\n");
 		return -EBADF;
@@ -299,7 +339,7 @@ static int wfs_fsync(const char *path, int flags, struct fuse_file_info *fi)
 static int wfs_setxattr(const char *path, const char *name, const char *value, size_t size, int flags)
 {
 	//printf("\33[0;31msetxattr\33[m path=%s name=%s value=%s\n", path, name, value);
-	printf("setxattr path=%s name=%s value=%s\n", path, name, value);
+	printf("setxattr path=%s name=%s\n", path, name);
 
 	REAL_PATH(path)
 
@@ -403,7 +443,7 @@ static void wfs_destroy(void *args)
 
 static int wfs_access(const char *path, int mode)
 {
-  	printf("\33[0;31maccess path=%s\33[m\n", path);
+  	printf("access path=%s\n", path);
 
 	REAL_PATH(path)
 
@@ -460,7 +500,7 @@ static int wfs_fgetattr(const char *path, struct stat *stat, struct fuse_file_in
 
 	REAL_PATH(path)
 
-	int fd = (int)fi->fh;
+	int fd = fi->fh;
 	if (!fd) {
 		fprintf(stderr, "fd is invalid\n");
 		return -EBADF;
@@ -517,7 +557,6 @@ static int wfs_poll(const char *path, struct fuse_file_info *fi,
 static struct fuse_operations wfs_oper = {
   	.getattr = wfs_getattr,
 	.readlink = wfs_readlink,
-	.getdir = wfs_getdir,
 	.mknod = wfs_mknod,
 	.mkdir = wfs_mkdir,
 	.unlink = wfs_unlink,
@@ -559,6 +598,6 @@ static struct fuse_operations wfs_oper = {
 
 int main(int argc, char *argv[])
 {
-  	setvbuf(stdout, NULL, _IONBF, 0);
+  	//setvbuf(stdout, NULL, _IONBF, 0);
 	return fuse_main(argc, argv, &wfs_oper, NULL);
 }
