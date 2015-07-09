@@ -1,14 +1,15 @@
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
+#include <errno.h>
 
 int main() {
-  char *p = "aabbccdd";
-  char a[10];
-  int i = 0;
-  for (;i < 10; i++) {
-    a[i] = 'a';
-  }
-  strcpy(a, p);
-  printf("version=%d %s\n", strlen(p), a);
-  return 0;
+	int res = symlink("todo.txt", "/home/xywang/fuse/s");
+	int errv = errno;
+	if (res == 0) {
+		return 0;
+	} else {
+		printf("Error: %s\n", strerror(errv));
+		return 1;
+	}
 }

@@ -7,6 +7,7 @@
 #include <dirent.h>
 #include <unistd.h>
 #include <sys/xattr.h>
+#include <stdlib.h>
 
 static char *rpath_prefix = "/home/xywang/fuse-store";
 
@@ -15,7 +16,7 @@ static unsigned int full_length(const char *path)
   	return strlen(rpath_prefix) + strlen(path);
 }
 
-#define REAL_PATH(oripath) \
+#define REAL_PATH(path) \
 	char real_path[full_length(path) + 1];\
 	strcpy(real_path, rpath_prefix);\
 	strcpy(real_path + strlen(rpath_prefix), path);
@@ -26,23 +27,32 @@ static int wfs_getattr(const char *path, struct stat *stbuf)
 	
 	memset(stbuf, 0, sizeof(struct stat));
 
-	char real_path[full_length(path) + 1];
-	strcpy(real_path, rpath_prefix);
-	strcpy(real_path + strlen(rpath_prefix), path);
+	REAL_PATH(path)
 
-	int res = stat(real_path, stbuf);
+	int res = lstat(real_path, stbuf);
 	int errv = errno;
 	if (res == 0) {
 		return res;
 	} else {
+		printf("\33[0;31mFailed to get attr: %s\n\33[m", strerror(errv));
 		return -errv;
 	}
 }
 
 static int wfs_readlink(const char *path, char *buf, size_t size)
 {
-	printf("\33[0;31mreadlink path=%s\33[m\n", path);
-	return 0;
+	printf("readlink path=%s\n", path);
+	
+	REAL_PATH(path)
+
+	ssize_t res = readlink(real_path, buf, size);
+	int errv = errno;
+	if (res != -1) {
+		return 0;
+	} else {
+		printf("\33[0;31m[Failed to read link: %s\n\33[m", strerror(errv));
+		return -errv;
+	}
 }
 
 static int wfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi)
@@ -95,13 +105,11 @@ static int wfs_read(const char *path,
 {
 	printf("read path=%s size=%zu offset=%jd\n", path, size, (intmax_t)offset);
 
-	char real_path[full_length(path) + 1];
-	strcpy(real_path, rpath_prefix);
-	strcpy(real_path + strlen(rpath_prefix), path);
+	REAL_PATH(path)
 
   	int fd = fi->fh;
 	if (!fd) {
-	  	fprintf(stderr, "no file discriptor for path=%s\n", path);
+	  	fprintf(stderr, "no file discriptor for path=%s\n", real_path);
 	  	return 0;
 	}
 
@@ -178,23 +186,19 @@ static int wfs_rmdir(const char *path)
 	}
 }
 
+/* oldpath is a plain string - no need to map to real_path */
 static int wfs_symlink(const char *oldpath, const char *newpath)
 {
-	printf("symlink old=%s new=%s\n", oldpath, newpath);
+	printf("\33[0;33msymlink\33[m str=%s new=%s\n", oldpath, newpath);
 
-	char real_oldpath[full_length(oldpath) + 1];
-	strcpy(real_oldpath, rpath_prefix);
-	strcpy(real_oldpath + strlen(rpath_prefix), oldpath);
+	REAL_PATH(newpath)
 
-	char real_newpath[full_length(newpath) + 1];
-	strcpy(real_newpath, rpath_prefix);
-	strcpy(real_newpath + strlen(rpath_prefix), newpath);
-
-	int res = symlink(real_oldpath, real_newpath);
+	int res = symlink(oldpath, real_path);
 	int errv = errno;
 	if (res == 0) {
 	  	return res;
 	} else {
+		printf("\33[0;31mFailed to create symlink: %s\n\33[m", strerror(errv));
 	  	return -errv;
 	}
 }
@@ -401,7 +405,7 @@ static int wfs_setxattr(const char *path, const char *name, const char *value, s
 
 	REAL_PATH(path)
 
-	int res = setxattr(path, name, value, size, flags);
+	int res = setxattr(real_path, name, value, size, flags);
 	int errv = errno;
 	if (res == 0) {
 		return res;
