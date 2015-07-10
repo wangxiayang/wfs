@@ -1,6 +1,8 @@
-default:
+default: store
 	gcc -Wall -c common.c
-	gcc -Wall store.c `pkg-config fuse --cflags --libs` -o store
+
+store: common.o
+	gcc -Wall $^ store.c `pkg-config fuse --cflags --libs` -o $@
 
 clean:
 	-fusermount -u test
