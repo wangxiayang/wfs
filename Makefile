@@ -1,12 +1,19 @@
-default: store
-	gcc -Wall -c common.c
+CC=gcc
+SOURCES=store.c common.c
+OBJECTS=$(SOURCES:.c=.o)
+EXECUTABLES=store
 
-store: common.o
-	gcc -Wall $^ store.c `pkg-config fuse --cflags --libs` -o $@
+all: store
+
+%.o: %.c
+	${CC} -Wall -c $^ -o $@ `pkg-config fuse --cflags`
+
+$(EXECUTABLES): common.o store.o
+	gcc -Wall -o $@ $^ `pkg-config fuse --libs` -lconfig
 
 clean:
 	-fusermount -u test
-	rm -f store hello *.o
+	rm -f ${EXECUTABLES} hello ${OBJECTS}
 
 mount:
 	./store test -f

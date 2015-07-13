@@ -9,9 +9,11 @@
 #include <sys/xattr.h>
 #include <stdlib.h>
 
+#include <libconfig.h>
+
 #include "common.h"
 
-static char *rpath_prefix = "/home/xywang/fuse-store";
+static const char *rpath_prefix;
 
 static unsigned int full_length(const char *path)
 {
@@ -36,7 +38,7 @@ static int wfs_getattr(const char *path, struct stat *stbuf)
 	if (res == 0) {
 		return res;
 	} else {
-		red_printf("Failed to get attr: %s\n", strerror(errv));
+		red_printf("Failed to get attr for %s: %s\n", real_path, strerror(errv));
 		return -errv;
 	}
 }
@@ -61,9 +63,7 @@ static int wfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_
 {
 	printf("readdir path=%s offset=%jd\n", path, (intmax_t)offset);
 
-	char real_path[full_length(path) + 1];
-	strcpy(real_path, rpath_prefix);
-	strcpy(real_path + strlen(rpath_prefix), path);
+	REAL_PATH(path)
 
 	if (offset != 0) {
 	  	red_printf("offset is not zero\n");
@@ -87,9 +87,7 @@ static int wfs_open(const char *path, struct fuse_file_info *fi)
 {
   	printf("open path=%s flag=%d\n", path, fi->flags);
 
-	char real_path[full_length(path) + 1];
-	strcpy(real_path, rpath_prefix);
-	strcpy(real_path + strlen(rpath_prefix), path);
+	REAL_PATH(path)
 
   	int fd = open(real_path, fi->flags);
 	if(fd < 0)
@@ -628,5 +626,26 @@ static struct fuse_operations wfs_oper = {
 
 int main(int argc, char *argv[])
 {
+	config_t cfg;
+	config_init(&cfg);
+
+	//printf("before call %x\n", rpath_prefix);
+	const char *str;
+
+	if (! config_read_file(&cfg, "wfs.cfg")) {
+		red_printf("Cannot find wfs.cfg\n");
+		config_destroy(&cfg);
+		return EXIT_FAILURE;
+	} else if (! config_lookup_string(&cfg, "storage-prefix", &str)) {
+		red_printf("Cannot find \"storage-prefix\" entry\n");
+		config_destroy(&cfg);
+		return EXIT_FAILURE;
+	}
+
+	char *tmp = (char *)malloc(strlen(str) + 1);
+	strcpy(tmp, str);
+	config_destroy(&cfg);
+	rpath_prefix = tmp;
+
 	return fuse_main(argc, argv, &wfs_oper, NULL);
 }
